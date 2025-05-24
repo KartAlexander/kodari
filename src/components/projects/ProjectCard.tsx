@@ -1,94 +1,96 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Users, Calendar } from 'lucide-react';
-import { Project } from '../../types';
-import { Card, CardContent } from '../ui/Card';
-import Badge from '../ui/Badge';
-import SkillTag from '../shared/SkillTag';
+// import { Users, Calendar } from 'lucide-react'; // Icons can be added back if needed
+import { Project } from '../../../services/projectService'; // Updated import
+import { Card, CardContent } from '../ui/Card'; // Assuming these are ShadCN/UI components or similar
+// import Badge from '../ui/Badge'; // Assuming this is a custom or ShadCN component
+// import SkillTag from '../shared/SkillTag'; // Assuming this is a custom component
 
 interface ProjectCardProps {
-  project: Project;
+  project: Project; // Use the Project type from the service
 }
 
-const stageColors = {
-  idea: 'warning',
-  prototype: 'primary',
-  mvp: 'secondary',
-  growth: 'success'
-} as const;
+// Example: Mapping project status to badge colors (if Badge component is used)
+// const statusColors = {
+//   planning: 'gray',
+//   active: 'blue',
+//   completed: 'green',
+//   on_hold: 'yellow',
+// } as const;
 
 const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
-  const stageColor = stageColors[project.stage] as 'warning' | 'primary' | 'secondary' | 'success';
+  // const statusColor = statusColors[project.status] || 'gray';
   
-  // Format date
-  const formattedDate = new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  }).format(project.created);
+  const formattedDate = project.createdAt 
+    ? new Intl.DateTimeFormat('ru-RU').format(new Date(project.createdAt))
+    : 'N/A';
   
   return (
-    <Link to={`/projects/${project.id}`}>
+    <Link to={`/projects/${project.id}`} className="block group">
       <Card 
-        variant="bordered" 
-        className="h-full hover:shadow-md transition-shadow duration-200 group animate-scale-in"
+        // variant="bordered" // Assuming Card component has variants
+        className="h-full hover:shadow-lg transition-shadow duration-200 animate-scale-in"
       >
-        <div className="relative">
+        {/* Placeholder for image if you add it to Project model later */}
+        {/* <div className="relative">
           <img 
-            src={project.image || 'https://images.pexels.com/photos/7102/notes-macbook-study-conference.jpg?auto=compress&cs=tinysrgb&w=600'} 
+            src={'https://images.pexels.com/photos/7102/notes-macbook-study-conference.jpg?auto=compress&cs=tinysrgb&w=600'} 
             alt={project.title} 
             className="h-48 w-full object-cover rounded-t-xl group-hover:opacity-90 transition-opacity"
           />
-          <div className="absolute top-3 right-3">
-            <Badge 
-              variant={stageColor}
-              className="capitalize"
-            >
-              {project.stage}
-            </Badge>
-          </div>
-        </div>
+        </div> */}
         
-        <CardContent className="pt-4">
-          <h3 className="text-lg font-semibold text-gray-900 group-hover:text-primary-600 transition-colors">
+        <CardContent className="p-4"> {/* Adjusted padding */}
+          <h3 className="text-lg font-semibold text-gray-900 group-hover:text-primary-600 transition-colors mb-2">
             {project.title}
           </h3>
           
-          <p className="mt-2 text-sm text-gray-500 line-clamp-2">
+          <p className="mt-1 text-sm text-gray-600 line-clamp-3"> {/* line-clamp for description */}
             {project.description}
           </p>
           
-          <div className="mt-4 flex items-center text-sm text-gray-500">
-            <Users size={16} className="mr-1" />
-            <span>Team size: {project.teamSize}</span>
-            <span className="mx-2">•</span>
-            <Calendar size={16} className="mr-1" />
-            <span>{formattedDate}</span>
+          <div className="mt-3 text-xs text-gray-500">
+            {/* <Users size={14} className="mr-1 inline-block" /> */}
+            {/* <span>Team size: N/A</span> */}
+            {/* <span className="mx-2">•</span> */}
+            {/* <Calendar size={14} className="mr-1 inline-block" /> */}
+            <span>Создан: {formattedDate}</span>
+          </div>
+
+          <div className="mt-1 text-xs text-gray-500">
+            Статус: <span className="font-medium text-gray-700">{project.status}</span>
+            {/* Example for status badge:
+            <Badge variant={statusColor} className="capitalize ml-2">{project.status}</Badge> 
+            */}
           </div>
           
-          <div className="mt-4">
-            <p className="text-xs text-gray-500 mb-2">Required skills:</p>
-            <div className="flex flex-wrap gap-2">
-              {project.requiredSkills.slice(0, 3).map(skill => (
+          {/* Skills section - currently commented out as skills are not in Project model from service */}
+          {/* <div className="mt-3">
+            <p className="text-xs text-gray-500 mb-1">Required skills:</p>
+            <div className="flex flex-wrap gap-1">
+              {project.requiredSkills?.slice(0, 3).map(skill => ( // Assuming requiredSkills might be fetched differently
                 <SkillTag key={skill.id} skill={skill} />
               ))}
-              {project.requiredSkills.length > 3 && (
+              {project.requiredSkills?.length > 3 && (
                 <Badge variant="default" size="sm">+{project.requiredSkills.length - 3} more</Badge>
               )}
             </div>
-          </div>
+          </div> */}
           
-          <div className="mt-4 pt-4 border-t border-gray-100 flex items-center">
-            <img 
-              src={project.founder.avatar} 
-              alt={project.founder.name} 
-              className="h-8 w-8 rounded-full object-cover"
-            />
-            <div className="ml-2">
-              <p className="text-sm font-medium text-gray-900">{project.founder.name}</p>
-              <p className="text-xs text-gray-500">{project.industry}</p>
+          {project.owner && (
+            <div className="mt-3 pt-3 border-t border-gray-200 flex items-center">
+              {/* Placeholder for owner avatar if available */}
+              {/* <img 
+                src={project.owner.avatar || 'default-avatar.png'} 
+                alt={project.owner.username} 
+                className="h-8 w-8 rounded-full object-cover"
+              /> */}
+              <div className="ml-0"> {/* Removed ml-2 if no avatar */}
+                <p className="text-sm font-medium text-gray-800">{project.owner.username}</p>
+                {/* <p className="text-xs text-gray-500">{project.industry}</p> */}
+              </div>
             </div>
-          </div>
+          )}
         </CardContent>
       </Card>
     </Link>

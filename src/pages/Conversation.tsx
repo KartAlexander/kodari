@@ -1,82 +1,146 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, FormEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import { useAuth } from '../contexts/AuthContext';
+import { 
+    messagingService, 
+    Message as ServiceMessage, // Renamed to avoid conflict
+    PaginatedMessageResponse,
+    Conversation as ServiceConversation // To fetch conversation details if needed
+} from '../../services/messagingService';
+import { useAuth } from '../../contexts/AuthContext';
+import { User } from '../../services/projectService'; // For User type
 
-interface Message {
-  id: number;
-  content: string;
-  createdAt: string;
-  senderId: number;
-}
-
-interface Conversation {
-  id: number;
-  project: {
-    id: number;
-    title: string;
-  };
-  participant: {
-    id: number;
-    name: string;
-    role: 'specialist' | 'founder';
-  };
-  messages: Message[];
-}
-
-const Conversation: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+const ConversationPage: React.FC = () => { // Renamed component
+  const { conversationId } = useParams<{ conversationId: string }>(); // Use conversationId
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [conversation, setConversation] = useState<Conversation | null>(null);
-  const [newMessage, setNewMessage] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+
+  // State for messages
+  const [paginatedMessages, setPaginatedMessages] = useState<PaginatedMessageResponse | null>(null);
+  const [messages, setMessages] = useState<ServiceMessage[]>([]); // Accumulate messages
+  const [loadingMessages, setLoadingMessages] = useState(true);
+  const [messagesError, setMessagesError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const messagesPerPage = 20;
+
+  // State for sending new message
+  const [newMessageContent, setNewMessageContent] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  
+  // State for conversation details (e.g., participant names)
+  const [currentConversation, setCurrentConversation] = useState<ServiceConversation | null>(null);
+  const [loadingConversationDetails, setLoadingConversationDetails] = useState(true);
+
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    fetchConversation();
-    const interval = setInterval(fetchConversation, 5000); // Poll for new messages
-    return () => clearInterval(interval);
-  }, [id]);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [conversation?.messages]);
-
-  const fetchConversation = async () => {
+  const fetchConversationDetails = async () => {
+      if (!conversationId) return;
+      setLoadingConversationDetails(true);
+      try {
+          // This endpoint doesn't exist yet. We need an endpoint like GET /api/conversations/:id
+          // For now, we'll try to get it from the list of conversations, or assume participants are known
+          // Ideally, backend provides GET /api/conversations/:conversationId which returns Conversation details
+          // As a fallback or if the main conversation list isn't readily available here,
+          // we might not have full participant details easily without an extra call or state passing.
+          // For this example, I'll fetch all conversations and find the current one.
+          // This is NOT efficient and should be replaced by a specific backend endpoint.
+          const allConversations = await messagingService.getConversations();
+          const foundConv = allConversations.find(c => c.id === conversationId);
+          if (foundConv) {
+              setCurrentConversation(foundConv);
+          } else {
+              setMessagesError("Детали диалога не найдены.");
+          }
+      } catch (err) {
+          console.error("Error fetching conversation details", err);
+          // Handle error if needed
+      } finally {
+          setLoadingConversationDetails(false);
+      }
+  };
+  
+  const fetchMessages = async (page: number, initialLoad = false) => {
+    if (!conversationId) return;
+    setLoadingMessages(true);
+    setMessagesError(null);
     try {
-      const response = await axios.get(`http://localhost:3000/api/conversations/${id}`);
-      setConversation(response.data);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching conversation:', error);
-      setError('Ошибка при загрузке разговора');
-      setLoading(false);
+      const response = await messagingService.getMessages(conversationId, { page, limit: messagesPerPage });
+      setPaginatedMessages(response);
+      if (initialLoad) {
+        setMessages(response.messages.reverse()); // Reverse for chronological display from bottom
+      } else {
+        // Prepend older messages when loading more (if messages are sorted newest first from API)
+        // Assuming API returns messages sorted createdAt: DESC (newest first) for pagination
+        // If API returns ASC (oldest first), then it's `setMessages(prev => [...prev, ...response.messages])`
+        setMessages(prev => [...response.messages.reverse(), ...prev]);
+      }
+      setCurrentPage(page);
+    } catch (err: any) {
+      console.error('Error fetching messages:', err);
+      setMessagesError(err.message || 'Ошибка при загрузке сообщений');
+    } finally {
+      setLoadingMessages(false);
     }
   };
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMessage.trim()) return;
+  useEffect(() => {
+    if (conversationId) {
+      fetchConversationDetails(); // Fetch details about the conversation itself
+      fetchMessages(1, true); // Fetch initial page of messages
+    }
+    // No polling for this version
+  }, [conversationId]);
 
+  useEffect(() => {
+    // Scroll to bottom only when new messages are added by the current user or on initial load
+    if (messages.length > 0) {
+        // Check if the last message is from the current user or if it's an initial load scenario
+        const lastMessage = messages[messages.length - 1];
+        if ((lastMessage && lastMessage.senderId === user?.id) || currentPage === 1 && paginatedMessages?.currentPage === 1) {
+             scrollToBottom();
+        }
+    }
+  }, [messages, user?.id, currentPage, paginatedMessages?.currentPage]);
+
+
+  const handleSendMessage = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!newMessageContent.trim() || !conversationId) return;
+    setIsSending(true);
     try {
-      await axios.post(`http://localhost:3000/api/conversations/${id}/messages`, {
-        content: newMessage,
-      });
-      setNewMessage('');
-      fetchConversation();
-    } catch (error) {
-      console.error('Error sending message:', error);
-      setError('Ошибка при отправке сообщения');
+      const sentMessage = await messagingService.sendMessage(conversationId, newMessageContent);
+      setMessages(prevMessages => [...prevMessages, sentMessage]); // Optimistic update
+      setNewMessageContent('');
+      // scrollToBottom(); // Already handled by useEffect on messages change
+    } catch (err: any) {
+      console.error('Error sending message:', err);
+      setMessagesError(err.message || 'Ошибка при отправке сообщения');
+      // Optionally, remove optimistic update on error
+    } finally {
+      setIsSending(false);
+    }
+  };
+  
+  const handleLoadMoreMessages = () => {
+    if (paginatedMessages && currentPage < paginatedMessages.totalPages) {
+      fetchMessages(currentPage + 1);
     }
   };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
+  
+  const getOtherParticipantsNames = (): string => {
+    if (!currentConversation || !user) return "Диалог";
+    return currentConversation.participants
+        .filter(p => p.id !== user.id)
+        .map(p => p.username)
+        .join(', ') || "Неизвестный участник";
+  };
 
-  if (loading) {
+
+  if (loadingConversationDetails || (loadingMessages && messages.length === 0)) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="text-center">Загрузка...</div>

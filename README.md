@@ -6,7 +6,7 @@
 
 - Frontend: React, TypeScript, Vite
 - Backend: Node.js, Express, TypeScript
-- База данных: MongoDB
+- База данных: PostgreSQL
 
 ## Установка и запуск
 

@@ -1,47 +1,102 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import axios from 'axios';
-import { useAuth } from '../contexts/AuthContext';
+import React, { useState, useEffect, FormEvent } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { messagingService, Conversation } from '../../services/messagingService'; // Updated import
+import { useAuth } from '../../contexts/AuthContext';
+import { User } from '../../services/projectService'; // For User type
 
-interface Conversation {
-  id: number;
-  project: {
-    id: number;
-    title: string;
-  };
-  participant: {
-    id: number;
-    name: string;
-    role: 'specialist' | 'founder';
-  };
-  lastMessage: {
-    content: string;
-    createdAt: string;
-    senderId: number;
-  };
+// Basic Modal Component (can be extracted)
+interface ModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+  title: string;
 }
+const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+      <div className="relative top-20 mx-auto p-5 border w-full max-w-lg shadow-lg rounded-md bg-white">
+        <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-medium">{title}</h3>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">&times;</button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+};
+
 
 const Messages: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchConversations();
-  }, []);
+  // For "New Conversation" modal
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [participantIdsInput, setParticipantIdsInput] = useState('');
+  const [newConversationError, setNewConversationError] = useState<string | null>(null);
+  const [isCreatingConversation, setIsCreatingConversation] = useState(false);
+
 
   const fetchConversations = async () => {
+    setLoading(true);
+    setError(null);
     try {
-      const response = await axios.get('http://localhost:3000/api/conversations');
-      setConversations(response.data);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching conversations:', error);
-      setError('Ошибка при загрузке сообщений');
+      const fetchedConversations = await messagingService.getConversations();
+      setConversations(fetchedConversations);
+    } catch (err: any) {
+      console.error('Error fetching conversations:', err);
+      setError(err.message || 'Ошибка при загрузке диалогов');
+    } finally {
       setLoading(false);
     }
   };
+  
+  useEffect(() => {
+    if (user) { // Only fetch if user is logged in
+        fetchConversations();
+    } else {
+        setLoading(false); // Not loading if no user
+    }
+  }, [user]);
+
+
+  const handleCreateConversation = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!participantIdsInput.trim()) {
+      setNewConversationError('Введите ID участников через запятую.');
+      return;
+    }
+    const ids = participantIdsInput.split(',').map(id => id.trim()).filter(id => id);
+    if (ids.length === 0) {
+      setNewConversationError('Необходимо указать хотя бы одного участника.');
+      return;
+    }
+
+    setIsCreatingConversation(true);
+    setNewConversationError(null);
+    try {
+      const newConversation = await messagingService.createConversation(ids);
+      setIsModalOpen(false);
+      setParticipantIdsInput('');
+      // navigate(`/messages/${newConversation.id}`); // Navigate to the new conversation
+      // Or refresh the list and let user click
+      fetchConversations(); 
+      alert(`Диалог создан/найден с ID: ${newConversation.id}`);
+    } catch (err: any) {
+      setNewConversationError(err.message || 'Не удалось создать диалог.');
+    } finally {
+      setIsCreatingConversation(false);
+    }
+  };
+  
+  const getOtherParticipants = (conversation: Conversation): User[] => {
+    return conversation.participants.filter(p => p.id !== user?.id);
+  };
+
 
   if (loading) {
     return (
