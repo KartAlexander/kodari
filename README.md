@@ -40,4 +40,4 @@ kodari/
 - `npm run dev` - запуск в режиме разработки
 - `npm run build` - сборка проекта
 - `npm run lint` - проверка кода линтером
-- `npm run test` - запуск тестов 
+- `npm run test` - запуск тестов
