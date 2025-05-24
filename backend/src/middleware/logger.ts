@@ -9,7 +9,7 @@ if (!fs.existsSync(logsDir)) {
 }
 
 // Функция для форматирования сообщения лога
-const formatLogMessage = (req: Request, action: string): string => {
+export const formatLogMessage = (req: Request, action: string): string => {
   const timestamp = new Date().toISOString();
   const userId = req.user?.id || 'неавторизованный';
   const userRole = req.user?.role || 'неавторизованный';
@@ -21,7 +21,7 @@ const formatLogMessage = (req: Request, action: string): string => {
 };
 
 // Функция для записи лога в файл
-const writeLog = (message: string): void => {
+export const writeLog = (message: string): void => {
   const date = new Date().toISOString().split('T')[0];
   const logFile = path.join(logsDir, `${date}.log`);
   fs.appendFileSync(logFile, message + '\n');
