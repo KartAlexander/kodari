@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+
+# Disallow API routes from being crawled
+Disallow: /api/
+
+# Disallow specific pages if needed, for example:
+# Disallow: /profile/ # Assuming profile pages are private or should not be indexed by default
+# Disallow: /messages/ # Messages are private
+
+# Allow specific pages if a parent directory is disallowed (example)
+# Allow: /public-profiles/john-doe
+
+# Sitemap (uncomment and update when sitemap is available)
+# Sitemap: https://www.kodari.com/sitemap.xml

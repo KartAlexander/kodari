@@ -1,6 +1,10 @@
 /** @type {import('tailwindcss').Config} */
-export default {
-  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+module.exports = { // Changed from export default to module.exports for CJS compatibility if needed
+  content: [
+    './pages/**/*.{js,ts,jsx,tsx,mdx}',
+    './components/**/*.{js,ts,jsx,tsx,mdx}',
+    // Add other directories if you have them, e.g., './app/**/*.{js,ts,jsx,tsx,mdx}' for App Router
+  ],
   theme: {
     extend: {
       colors: {
